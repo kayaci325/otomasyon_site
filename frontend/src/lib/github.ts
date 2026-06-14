@@ -107,6 +107,9 @@ export async function listWorkflowRuns(limit = 20) {
     `${API}/repos/${OWNER}/${REPO}/actions/workflows/youtube-pipeline.yml/runs?per_page=${limit}`,
     { headers: headers(), cache: "no-store" }
   );
+  // The pipeline workflow may not exist in every repo (e.g. a config-only repo).
+  // Treat "no workflow connected" as an empty run history rather than a hard error.
+  if (res.status === 404) return [];
   if (!res.ok) throw new GitHubError(res.status, `GitHub API ${res.status}`);
   const data = await res.json();
   return data.workflow_runs || [];

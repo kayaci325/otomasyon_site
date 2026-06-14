@@ -1,0 +1,19 @@
+{
+  "mindpower": {
+    "name": "MindPower",
+    "description": "Control your mind, control your life.",
+    "active_niches": [
+      "psychology", "stoic_philosophy", "dark_psychology",
+      "trading_finance", "manipulation_tactics", "body_language",
+      "nlp", "influence_persuasion", "behavioral_economics",
+      "wealth_mindset", "motivation_discipline"
+    ],
+    "youtube_secret": "YOUTUBE_TOKEN_JSON",
+    "voice_short": "pNInz6obpgDQGcFmaJgB",
+    "voice_long": "onwK4e9ZLuTAKqWW03F9",
+    "palette": { "primary": "#0A1628", "accent": "#C9A84C" },
+    "category_id": "27",
+    "default_language": "en",
+    "active": true
+  }
+}

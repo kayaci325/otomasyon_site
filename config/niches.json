@@ -1,0 +1,79 @@
+{
+  "psychology": {
+    "label": "Psychology",
+    "series": "Mind Traps",
+    "subreddits": ["psychology", "cognitivescience"],
+    "subjects": "human behavior, mental traps, cognitive biases",
+    "color": "#6366f1"
+  },
+  "stoic_philosophy": {
+    "label": "Stoic Philosophy",
+    "series": "The Stoic Code",
+    "subreddits": ["Stoicism"],
+    "subjects": "Marcus Aurelius, Seneca, Epictetus teachings",
+    "color": "#8b5cf6"
+  },
+  "dark_psychology": {
+    "label": "Dark Psychology",
+    "series": "Dark Psychology Files",
+    "subreddits": ["psychology"],
+    "subjects": "recognizing dark persuasion and psychological tactics",
+    "color": "#ef4444"
+  },
+  "trading_finance": {
+    "label": "Trading & Finance",
+    "series": "Money Mind",
+    "subreddits": ["Daytrading", "investing"],
+    "subjects": "trading psychology, money management",
+    "color": "#22c55e"
+  },
+  "manipulation_tactics": {
+    "label": "Manipulation Awareness",
+    "series": "Manipulation Decoded",
+    "subreddits": ["socialskills"],
+    "subjects": "spotting social engineering and persuasion strategies",
+    "color": "#f97316"
+  },
+  "body_language": {
+    "label": "Body Language",
+    "series": "Body Language Files",
+    "subreddits": ["bodylanguage"],
+    "subjects": "lie detection, power signals, nonverbal cues",
+    "color": "#14b8a6"
+  },
+  "nlp": {
+    "label": "NLP",
+    "series": "Mind Language",
+    "subreddits": ["NLP"],
+    "subjects": "neuro-linguistic programming techniques",
+    "color": "#a855f7"
+  },
+  "influence_persuasion": {
+    "label": "Influence & Persuasion",
+    "series": "The Laws of Influence",
+    "subreddits": ["socialskills"],
+    "subjects": "Cialdini principles, the science of persuasion",
+    "color": "#3b82f6"
+  },
+  "behavioral_economics": {
+    "label": "Behavioral Economics",
+    "series": "The Irrational Mind",
+    "subreddits": ["BehavioralEconomics"],
+    "subjects": "decision-making errors, irrational behavior",
+    "color": "#eab308"
+  },
+  "wealth_mindset": {
+    "label": "Wealth Mindset",
+    "series": "The Wealth Code",
+    "subreddits": ["financialindependence"],
+    "subjects": "wealth mindset, financial freedom",
+    "color": "#10b981"
+  },
+  "motivation_discipline": {
+    "label": "Motivation & Discipline",
+    "series": "The Discipline Protocol",
+    "subreddits": ["getdisciplined"],
+    "subjects": "success stories, discipline techniques",
+    "color": "#f59e0b"
+  }
+}

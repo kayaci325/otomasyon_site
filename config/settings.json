@@ -1,0 +1,29 @@
+{
+  "production": {
+    "images_per_short": 5,
+    "images_per_long": 20,
+    "fps": 30,
+    "short_resolution": "1080x1920",
+    "long_resolution": "1920x1080",
+    "music_volume_db": -22.0,
+    "subtitle_font": "Open Sans",
+    "trending_ratio": 0.4
+  },
+  "tts": {
+    "model_id": "eleven_multilingual_v2",
+    "stability": 0.45,
+    "similarity_boost": 0.80
+  },
+  "youtube": {
+    "category_id": "27",
+    "default_language": "en",
+    "made_for_kids": false,
+    "privacy_status": "private"
+  },
+  "thresholds": {
+    "ctr_alarm": 4.0,
+    "avd_alarm": 40.0,
+    "shorts_apv_target": 100.0,
+    "max_videos_per_day": 3
+  }
+}

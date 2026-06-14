@@ -1,0 +1,19 @@
+{
+  "weekly_plan": [
+    { "weekday": 0, "hour": 13, "format": "short", "niche": null, "label": "Monday Short" },
+    { "weekday": 2, "hour": 13, "format": "short", "niche": null, "label": "Wednesday Short" },
+    { "weekday": 2, "hour": 19, "format": "long",  "niche": "trading_finance", "label": "Wednesday Long (Trading)" },
+    { "weekday": 4, "hour": 19, "format": "short", "niche": null, "label": "Friday Short" },
+    { "weekday": 5, "hour": 13, "format": "long",  "niche": null, "label": "Saturday Long" }
+  ],
+  "short_rotation": [
+    "psychology", "stoic_philosophy", "dark_psychology", "wealth_mindset",
+    "body_language", "behavioral_economics", "manipulation_tactics",
+    "motivation_discipline", "influence_persuasion", "trading_finance", "nlp"
+  ],
+  "long_rotation": [
+    "stoic_philosophy", "dark_psychology", "psychology",
+    "wealth_mindset", "behavioral_economics", "influence_persuasion"
+  ],
+  "timezone": "UTC"
+}

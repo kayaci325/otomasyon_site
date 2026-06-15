@@ -63,7 +63,9 @@ export default function DashboardPage() {
   const t = settings.thresholds ?? { ctr_alarm: 0, avd_alarm: 0, shorts_apv_target: 0, max_videos_per_day: 0 };
 
   const since = now - WEEK_MS;
+  const prevSince = now - 2 * WEEK_MS;
   const weekly = perf.filter((v) => new Date(v.published_at).getTime() >= since);
+  const prevWeek = perf.filter((v) => { const t = new Date(v.published_at).getTime(); return t >= prevSince && t < since; });
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
   const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
   const weekViews = sum(weekly.map((v) => v.views));
@@ -73,6 +75,24 @@ export default function DashboardPage() {
   const shortsApv = avg(weekShorts.map(v => v.apv));
   const longsRet = avg(weekLongs.map(v => v.retention));
   const weekCtr = avg(weekly.map(v => v.ctr));
+  const weekRev = sum(weekly.map(v => v.revenue || 0));
+
+  const prevViews = sum(prevWeek.map(v => v.views));
+  const prevSubs = sum(prevWeek.map(v => v.subs_gained));
+  const prevCtr = avg(prevWeek.map(v => v.ctr));
+  const prevShorts = prevWeek.filter(v => v.format === "short");
+  const prevLongs = prevWeek.filter(v => v.format === "long");
+  const prevApv = avg(prevShorts.map(v => v.apv));
+  const prevRet = avg(prevLongs.map(v => v.retention));
+  const prevRev = sum(prevWeek.map(v => v.revenue || 0));
+
+  function trend(cur: number, prev: number): "up" | "down" | "flat" {
+    if (prev === 0) return cur > 0 ? "up" : "flat";
+    const pct = ((cur - prev) / prev) * 100;
+    if (pct > 5) return "up";
+    if (pct < -5) return "down";
+    return "flat";
+  }
 
   const alarms: string[] = [];
   for (const v of perf) {
@@ -123,13 +143,14 @@ export default function DashboardPage() {
 
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>This Week</h2>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-          <MetricCard label="Videos" value={String(weekly.length)} />
-          <MetricCard label="Views" value={weekViews > 999 ? `${(weekViews / 1000).toFixed(1)}K` : String(weekViews)} />
-          <MetricCard label="Subs" value={`+${weekSubs}`} color={weekSubs > 0 ? "var(--success)" : undefined} />
-          <MetricCard label="Avg CTR" value={weekly.length ? `${weekCtr.toFixed(1)}%` : "—"} alarm={weekly.length > 0 && weekCtr < t.ctr_alarm} />
-          <MetricCard label="Shorts APV" value={weekShorts.length ? `${shortsApv.toFixed(0)}%` : "—"} alarm={weekShorts.length > 0 && shortsApv < t.shorts_apv_target} />
-          <MetricCard label="Long Ret." value={weekLongs.length ? `${longsRet.toFixed(0)}%` : "—"} alarm={weekLongs.length > 0 && longsRet < t.avd_alarm} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <MetricCard label="Videos" value={String(weekly.length)} trend={trend(weekly.length, prevWeek.length)} />
+          <MetricCard label="Views" value={weekViews > 999 ? `${(weekViews / 1000).toFixed(1)}K` : String(weekViews)} trend={trend(weekViews, prevViews)} />
+          <MetricCard label="Subs" value={`+${weekSubs}`} color={weekSubs > 0 ? "var(--success)" : undefined} trend={trend(weekSubs, prevSubs)} />
+          <MetricCard label="Revenue" value={weekRev > 0 ? `$${weekRev.toFixed(2)}` : "—"} color={weekRev > 0 ? "var(--success)" : undefined} trend={trend(weekRev, prevRev)} />
+          <MetricCard label="Avg CTR" value={weekly.length ? `${weekCtr.toFixed(1)}%` : "—"} alarm={weekly.length > 0 && weekCtr < t.ctr_alarm} trend={trend(weekCtr, prevCtr)} />
+          <MetricCard label="Shorts APV" value={weekShorts.length ? `${shortsApv.toFixed(0)}%` : "—"} alarm={weekShorts.length > 0 && shortsApv < t.shorts_apv_target} trend={trend(shortsApv, prevApv)} />
+          <MetricCard label="Long Ret." value={weekLongs.length ? `${longsRet.toFixed(0)}%` : "—"} alarm={weekLongs.length > 0 && longsRet < t.avd_alarm} trend={trend(longsRet, prevRet)} />
         </div>
       </section>
 
@@ -205,10 +226,17 @@ export default function DashboardPage() {
   );
 }
 
-function MetricCard({ label, value, color, alarm }: { label: string; value: string; color?: string; alarm?: boolean }) {
+function MetricCard({ label, value, color, alarm, trend }: { label: string; value: string; color?: string; alarm?: boolean; trend?: "up" | "down" | "flat" }) {
   return (
     <div className="card text-center py-3 px-2">
-      <div className="text-lg font-bold" style={{ color: alarm ? "var(--error)" : color || "var(--text)" }}>{value}</div>
+      <div className="flex items-center justify-center gap-1">
+        <span className="text-lg font-bold" style={{ color: alarm ? "var(--error)" : color || "var(--text)" }}>{value}</span>
+        {trend && trend !== "flat" && (
+          <span className="text-xs" style={{ color: trend === "up" ? "var(--success)" : "var(--error)" }}>
+            {trend === "up" ? "▲" : "▼"}
+          </span>
+        )}
+      </div>
       <div className="text-[0.65rem] mt-0.5" style={{ color: "var(--text-muted)" }}>{label}</div>
     </div>
   );

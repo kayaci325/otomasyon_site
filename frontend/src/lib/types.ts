@@ -112,6 +112,8 @@ export interface VideoPerf {
   retention: number; // average view %, AVD proxy
   apv: number; // shorts average % viewed
   subs_gained: number;
+  revenue?: number;
+  rpm?: number;
   notes?: string;
 }
 
@@ -143,6 +145,31 @@ export interface WeeklyDecision {
   worst_video: string;
   diagnosis: string;
   variable_changed: string; // the single change for the week
+  created_at: string;
+}
+
+/** Video production studio — scene-by-scene project planning. */
+export interface Scene {
+  id: string;
+  order: number;
+  duration_seconds: number;
+  text: string;
+  image_url: string;
+  image_prompt: string;
+  transition: "cut" | "fade" | "dissolve" | "slide" | "zoom";
+}
+
+export interface VideoProject {
+  id: string;
+  title: string;
+  mode: "quick" | "manual";
+  format: "short" | "long";
+  total_duration_seconds: number;
+  scene_count: number;
+  niche: string;
+  topic: string;
+  scenes: Scene[];
+  status: "draft" | "producing" | "done";
   created_at: string;
 }
 

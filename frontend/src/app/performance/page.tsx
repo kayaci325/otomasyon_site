@@ -78,13 +78,15 @@ function Scoreboard({ videos, thresholds }: { videos: VideoPerf[]; thresholds: S
   const longs = week.filter(v => v.format === "long");
   const shortsApv = avg(shorts.map(v => v.apv));
   const longsRet = avg(longs.map(v => v.retention));
+  const rev = sum(week.map(v => v.revenue || 0));
   return (
     <section>
       <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>This Week</h2>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
         <Stat label="Videos" value={String(week.length)} />
         <Stat label="Views" value={sum(week.map((v) => v.views)).toLocaleString()} />
         <Stat label="Subs" value={`+${sum(week.map((v) => v.subs_gained))}`} />
+        <Stat label="Revenue" value={rev > 0 ? `$${rev.toFixed(2)}` : "—"} />
         <Stat label="Avg CTR" value={week.length ? `${ctr.toFixed(1)}%` : "—"} alarm={!!thresholds && week.length > 0 && ctr < thresholds.ctr_alarm} />
         <Stat label="Shorts APV" value={shorts.length ? `${shortsApv.toFixed(0)}%` : "—"} alarm={!!thresholds && shorts.length > 0 && shortsApv < thresholds.shorts_apv_target} />
         <Stat label="Long Ret." value={longs.length ? `${longsRet.toFixed(0)}%` : "—"} alarm={!!thresholds && longs.length > 0 && longsRet < thresholds.avd_alarm} />
@@ -138,7 +140,7 @@ function Markers({ decisions, onSaved, toastOk, toastError }: { decisions: Decis
 
 /* -------- add video -------- */
 function AddVideo({ niches, onAdded, toast }: { niches: Record<string, Niche>; onAdded: () => void; toast: ReturnType<typeof useToast>; }) {
-  const empty = { title: "", youtube_url: "", niche: "", format: "short", hook: "", published_at: new Date().toISOString().slice(0, 10), views: "", ctr: "", retention: "", apv: "", subs_gained: "" };
+  const empty = { title: "", youtube_url: "", niche: "", format: "short", hook: "", published_at: new Date().toISOString().slice(0, 10), views: "", ctr: "", retention: "", apv: "", subs_gained: "", revenue: "", rpm: "" };
   const [f, setF] = useState(empty);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -150,7 +152,7 @@ function AddVideo({ niches, onAdded, toast }: { niches: Record<string, Niche>; o
     try {
       await apiFetch("/api/performance", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add", ...f, views: Number(f.views) || 0, ctr: Number(f.ctr) || 0, retention: Number(f.retention) || 0, apv: Number(f.apv) || 0, subs_gained: Number(f.subs_gained) || 0 }),
+        body: JSON.stringify({ action: "add", ...f, views: Number(f.views) || 0, ctr: Number(f.ctr) || 0, retention: Number(f.retention) || 0, apv: Number(f.apv) || 0, subs_gained: Number(f.subs_gained) || 0, revenue: Number(f.revenue) || 0, rpm: Number(f.rpm) || 0 }),
       });
       setF(empty); setOpen(false); onAdded(); toast.success("Video logged");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to add"); }
@@ -174,12 +176,14 @@ function AddVideo({ niches, onAdded, toast }: { niches: Record<string, Niche>; o
         <div><label className="label">Published</label><input className="input" type="date" value={f.published_at} onChange={(e) => set("published_at", e.target.value)} /></div>
         <input className="input self-end" placeholder="Hook formula (optional)" value={f.hook} onChange={(e) => set("hook", e.target.value)} aria-label="Hook" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div><label className="label">Views</label><input className="input" type="number" min={0} value={f.views} onChange={(e) => set("views", e.target.value)} /></div>
         <div><label className="label">CTR %</label><input className="input" type="number" min={0} step={0.1} value={f.ctr} onChange={(e) => set("ctr", e.target.value)} /></div>
         <div><label className="label">Retention %</label><input className="input" type="number" min={0} step={1} value={f.retention} onChange={(e) => set("retention", e.target.value)} /></div>
         <div><label className="label">APV %</label><input className="input" type="number" min={0} step={1} value={f.apv} onChange={(e) => set("apv", e.target.value)} /></div>
         <div><label className="label">Subs gained</label><input className="input" type="number" value={f.subs_gained} onChange={(e) => set("subs_gained", e.target.value)} /></div>
+        <div><label className="label">Revenue $</label><input className="input" type="number" min={0} step={0.01} value={f.revenue} onChange={(e) => set("revenue", e.target.value)} /></div>
+        <div><label className="label">RPM $</label><input className="input" type="number" min={0} step={0.01} value={f.rpm} onChange={(e) => set("rpm", e.target.value)} /></div>
       </div>
       <div className="flex gap-2">
         <button type="submit" className="btn btn-primary" disabled={saving || !f.title.trim()}>{saving ? <Spinner /> : "Save video"}</button>
@@ -192,6 +196,8 @@ function AddVideo({ niches, onAdded, toast }: { niches: Record<string, Niche>; o
 /* -------- ledger table -------- */
 function Ledger({ videos, niches, thresholds, onChanged, toast }: { videos: VideoPerf[]; niches: Record<string, Niche>; thresholds: Settings["thresholds"] | null; onChanged: () => void; toast: ReturnType<typeof useToast>; }) {
   const sorted = useMemo(() => [...videos].sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()), [videos]);
+  const [editId, setEditId] = useState<string | null>(null);
+
   async function del(v: VideoPerf) {
     if (!confirm(`Delete "${v.title}" from the ledger?`)) return;
     try {
@@ -199,101 +205,256 @@ function Ledger({ videos, niches, thresholds, onChanged, toast }: { videos: Vide
       onChanged(); toast.success("Removed");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Delete failed"); }
   }
+
+  async function saveEdit(id: string, updates: Record<string, unknown>) {
+    try {
+      await apiFetch("/api/performance", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", id, updates }),
+      });
+      onChanged(); toast.success("Updated"); setEditId(null);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Update failed"); }
+  }
+
   const low = (val: number, limit?: number) => limit !== undefined && val > 0 && val < limit;
+  const totalRev = videos.reduce((s, v) => s + (v.revenue || 0), 0);
+
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-3">Video Ledger ({videos.length})</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Video Ledger ({videos.length})</h2>
+        {totalRev > 0 && <span className="text-sm font-semibold" style={{ color: "var(--success)" }}>Total: ${totalRev.toFixed(2)}</span>}
+      </div>
       {sorted.length === 0 ? (
         <div className="card"><EmptyState title="No videos logged yet" hint="After publishing, log each video's metrics here to run your weekly review." icon="📊" /></div>
       ) : (
-        <div className="card table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Video</th><th>Niche</th><th>Fmt</th><th>Published</th>
-                <th>Views</th><th>CTR</th><th>Ret.</th><th>APV</th><th>Subs</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((v) => (
-                <tr key={v.id}>
-                  <td className="max-w-[200px]">
-                    {v.youtube_url ? <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--gold)" }}>{v.title}</a> : v.title}
-                    {v.hook && <div className="text-[0.7rem] italic" style={{ color: "var(--text-muted)" }}>{v.hook}</div>}
-                  </td>
-                  <td>{v.niche && niches[v.niche] ? <NicheBadge label={niches[v.niche].label} color={niches[v.niche].color} /> : "—"}</td>
-                  <td><FormatBadge format={v.format} /></td>
-                  <td className="whitespace-nowrap">{fmtDate(v.published_at)}</td>
-                  <td>{v.views.toLocaleString()}</td>
-                  <td style={{ color: low(v.ctr, thresholds?.ctr_alarm) ? "var(--error)" : undefined }}>{v.ctr || "—"}</td>
-                  <td style={{ color: low(v.retention, thresholds?.avd_alarm) ? "var(--error)" : undefined }}>{v.retention || "—"}</td>
-                  <td style={{ color: v.format === "short" && low(v.apv, thresholds?.shorts_apv_target) ? "var(--error)" : undefined }}>{v.apv || "—"}</td>
-                  <td>{v.subs_gained || "—"}</td>
-                  <td><button className="icon-btn" style={{ color: "var(--error)" }} aria-label="Delete video" onClick={() => del(v)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" /></svg></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {sorted.map((v) => (
+            editId === v.id ? (
+              <EditRow key={v.id} video={v} niches={niches} onSave={(u) => saveEdit(v.id, u)} onCancel={() => setEditId(null)} />
+            ) : (
+              <div key={v.id} className="card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {v.youtube_url ? <a href={v.youtube_url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold underline" style={{ color: "var(--gold)" }}>{v.title}</a> : <span className="text-sm font-semibold">{v.title}</span>}
+                      <FormatBadge format={v.format} />
+                      {v.niche && niches[v.niche] && <NicheBadge label={niches[v.niche].label} color={niches[v.niche].color} />}
+                    </div>
+                    {v.hook && <div className="text-[0.7rem] italic mt-0.5" style={{ color: "var(--text-muted)" }}>{v.hook}</div>}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs">
+                      <span>{fmtDate(v.published_at)}</span>
+                      <span>{v.views.toLocaleString()} views</span>
+                      <span style={{ color: low(v.ctr, thresholds?.ctr_alarm) ? "var(--error)" : "var(--text-muted)" }}>CTR {v.ctr || "—"}%</span>
+                      <span style={{ color: low(v.retention, thresholds?.avd_alarm) ? "var(--error)" : "var(--text-muted)" }}>Ret. {v.retention || "—"}%</span>
+                      <span style={{ color: v.format === "short" && low(v.apv, thresholds?.shorts_apv_target) ? "var(--error)" : "var(--text-muted)" }}>APV {v.apv || "—"}%</span>
+                      <span style={{ color: "var(--text-muted)" }}>+{v.subs_gained} subs</span>
+                      {(v.revenue || 0) > 0 && <span style={{ color: "var(--success)" }}>${v.revenue?.toFixed(2)}</span>}
+                      {(v.rpm || 0) > 0 && <span style={{ color: "var(--text-muted)" }}>RPM ${v.rpm?.toFixed(2)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button className="icon-btn" style={{ color: "var(--text-muted)" }} aria-label="Edit video" onClick={() => setEditId(v.id)}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    <button className="icon-btn" style={{ color: "var(--error)" }} aria-label="Delete video" onClick={() => del(v)}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          ))}
         </div>
       )}
     </section>
   );
 }
 
-/* -------- decisions log -------- */
+function EditRow({ video, niches, onSave, onCancel }: { video: VideoPerf; niches: Record<string, Niche>; onSave: (u: Record<string, unknown>) => void; onCancel: () => void }) {
+  const [f, setF] = useState({
+    title: video.title, youtube_url: video.youtube_url, niche: video.niche || "", format: video.format,
+    hook: video.hook || "", published_at: video.published_at, views: String(video.views), ctr: String(video.ctr),
+    retention: String(video.retention), apv: String(video.apv), subs_gained: String(video.subs_gained),
+    revenue: String(video.revenue || 0), rpm: String(video.rpm || 0),
+  });
+  const [saving, setSaving] = useState(false);
+  function set(k: string, v: string) { setF((p) => ({ ...p, [k]: v })); }
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    onSave({
+      title: f.title, youtube_url: f.youtube_url, niche: f.niche || null, format: f.format,
+      hook: f.hook || null, published_at: f.published_at, views: Number(f.views) || 0, ctr: Number(f.ctr) || 0,
+      retention: Number(f.retention) || 0, apv: Number(f.apv) || 0, subs_gained: Number(f.subs_gained) || 0,
+      revenue: Number(f.revenue) || 0, rpm: Number(f.rpm) || 0,
+    });
+  }
+  return (
+    <form onSubmit={submit} className="card space-y-3" style={{ borderColor: "var(--gold)" }}>
+      <input className="input" placeholder="Title" value={f.title} onChange={(e) => set("title", e.target.value)} />
+      <input className="input" placeholder="YouTube URL" value={f.youtube_url} onChange={(e) => set("youtube_url", e.target.value)} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <select className="select" value={f.niche} onChange={(e) => set("niche", e.target.value)}>
+          <option value="">Niche…</option>
+          {Object.entries(niches).map(([k, n]) => <option key={k} value={k}>{n.label}</option>)}
+        </select>
+        <select className="select" value={f.format} onChange={(e) => set("format", e.target.value)}>
+          <option value="short">Short</option><option value="long">Long</option>
+        </select>
+        <input className="input" type="date" value={f.published_at} onChange={(e) => set("published_at", e.target.value)} />
+        <input className="input" placeholder="Hook" value={f.hook} onChange={(e) => set("hook", e.target.value)} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div><label className="label">Views</label><input className="input" type="number" value={f.views} onChange={(e) => set("views", e.target.value)} /></div>
+        <div><label className="label">CTR %</label><input className="input" type="number" step={0.1} value={f.ctr} onChange={(e) => set("ctr", e.target.value)} /></div>
+        <div><label className="label">Ret. %</label><input className="input" type="number" value={f.retention} onChange={(e) => set("retention", e.target.value)} /></div>
+        <div><label className="label">APV %</label><input className="input" type="number" value={f.apv} onChange={(e) => set("apv", e.target.value)} /></div>
+        <div><label className="label">Subs</label><input className="input" type="number" value={f.subs_gained} onChange={(e) => set("subs_gained", e.target.value)} /></div>
+        <div><label className="label">Revenue $</label><input className="input" type="number" step={0.01} value={f.revenue} onChange={(e) => set("revenue", e.target.value)} /></div>
+        <div><label className="label">RPM $</label><input className="input" type="number" step={0.01} value={f.rpm} onChange={(e) => set("rpm", e.target.value)} /></div>
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Spinner /> : "Save"}</button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+/* -------- weekly ritual wizard + decisions log -------- */
+const RITUAL_STEPS = [
+  { key: "review", title: "Review Numbers", hint: "Open YouTube Studio → check each video's CTR, retention, APV. Update the ledger above." },
+  { key: "best", title: "Best Video", hint: "Which video flew? What hook/thumbnail/topic made it work?" },
+  { key: "worst", title: "Worst Video", hint: "One-sentence diagnosis — why did it flop?" },
+  { key: "diagnosis", title: "Root Cause", hint: "What pattern connects the winner and the loser? Write your hypothesis." },
+  { key: "variable", title: "One Change", hint: "Pick exactly ONE variable to change this week. The playbook forbids multiple." },
+] as const;
+
 function Decisions({ decisions, videos, onChanged, toast }: { decisions: WeeklyDecision[]; videos: VideoPerf[]; onChanged: () => void; toast: ReturnType<typeof useToast>; }) {
-  const [open, setOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const empty = { week_of: mondayOf(), best_video: "", worst_video: "", diagnosis: "", variable_changed: "" };
   const [f, setF] = useState(empty);
   function set(k: string, v: string) { setF((p) => ({ ...p, [k]: v })); }
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    // One-variable guard (the cardinal playbook rule)
+
+  const sortedByViews = useMemo(() => [...videos].sort((a, b) => b.views - a.views), [videos]);
+  const topPick = sortedByViews[0];
+  const bottomPick = sortedByViews[sortedByViews.length - 1];
+
+  async function submit() {
     if (/\band\b|[,;]|\n/i.test(f.variable_changed.trim())) {
       if (!confirm("This looks like more than one change. The playbook says change ONLY ONE variable per week. Log it anyway?")) return;
     }
     setSaving(true);
     try {
       await apiFetch("/api/decisions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", ...f }) });
-      setF(empty); setOpen(false); onChanged(); toast.success("Decision logged");
+      setF(empty); setWizardOpen(false); setStep(0); onChanged(); toast.success("Weekly ritual logged");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to log"); }
     setSaving(false);
   }
+
   async function del(id: string) {
     try {
       await apiFetch("/api/decisions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
       onChanged(); toast.success("Removed");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Delete failed"); }
   }
-  const topPick = videos.slice().sort((a, b) => b.views - a.views)[0];
+
+  const fieldForStep = (s: number) => {
+    if (s === 1) return f.best_video;
+    if (s === 2) return f.worst_video;
+    if (s === 3) return f.diagnosis;
+    if (s === 4) return f.variable_changed;
+    return "ok";
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Weekly Decisions</h2>
-        {!open && <button className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>+ Log this week</button>}
+        <h2 className="text-lg font-semibold">Monday Ritual</h2>
+        {!wizardOpen && (
+          <button className="btn btn-primary btn-sm" onClick={() => setWizardOpen(true)}>
+            Start Weekly Ritual
+          </button>
+        )}
       </div>
-      {open && (
-        <form onSubmit={add} className="card space-y-3 mb-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Week of</label><input className="input" type="date" value={f.week_of} onChange={(e) => set("week_of", e.target.value)} /></div>
-            <div className="self-end text-xs" style={{ color: "var(--text-muted)" }}>{topPick ? `Top video: ${topPick.title}` : ""}</div>
+
+      {wizardOpen && (
+        <div className="card space-y-4" style={{ borderColor: "var(--gold)" }}>
+          {/* Progress bar */}
+          <div className="flex gap-1">
+            {RITUAL_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className="h-1 flex-1 rounded-full transition-all"
+                style={{ background: i <= step ? "var(--gold)" : "var(--border)" }}
+              />
+            ))}
           </div>
-          <input className="input" placeholder="Best video — and why it flew" value={f.best_video} onChange={(e) => set("best_video", e.target.value)} />
-          <input className="input" placeholder="Worst video — one-sentence diagnosis" value={f.worst_video} onChange={(e) => set("worst_video", e.target.value)} />
-          <textarea className="textarea" placeholder="Diagnosis / notes" value={f.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} />
+
           <div>
-            <input className="input" placeholder="The ONE variable changed this week" value={f.variable_changed} onChange={(e) => set("variable_changed", e.target.value)} />
-            <p className="text-[0.7rem] mt-1" style={{ color: "var(--warning)" }}>Change only one variable per week — otherwise you can&apos;t tell what worked.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: "var(--gold)22", color: "var(--gold)" }}>
+                {step + 1}/{RITUAL_STEPS.length}
+              </span>
+              <h3 className="text-sm font-semibold">{RITUAL_STEPS[step].title}</h3>
+            </div>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{RITUAL_STEPS[step].hint}</p>
           </div>
-          <div className="flex gap-2">
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Spinner /> : "Log decision"}</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+
+          {step === 0 && (
+            <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
+              <div><label className="label">Week of</label><input className="input" type="date" value={f.week_of} onChange={(e) => set("week_of", e.target.value)} /></div>
+              <p className="mt-2">Update each video&apos;s metrics in the ledger above, then proceed.</p>
+              {topPick && <p>Your current top: <strong style={{ color: "var(--text)" }}>{topPick.title}</strong> ({topPick.views.toLocaleString()} views)</p>}
+            </div>
+          )}
+          {step === 1 && (
+            <div>
+              <input className="input" placeholder="Best video — and why it flew" value={f.best_video} onChange={(e) => set("best_video", e.target.value)} autoFocus />
+              {topPick && <p className="text-[0.7rem] mt-1" style={{ color: "var(--text-muted)" }}>Suggestion: {topPick.title}</p>}
+            </div>
+          )}
+          {step === 2 && (
+            <div>
+              <input className="input" placeholder="Worst video — one-sentence diagnosis" value={f.worst_video} onChange={(e) => set("worst_video", e.target.value)} autoFocus />
+              {bottomPick && bottomPick !== topPick && <p className="text-[0.7rem] mt-1" style={{ color: "var(--text-muted)" }}>Lowest views: {bottomPick.title}</p>}
+            </div>
+          )}
+          {step === 3 && (
+            <textarea className="textarea" placeholder="What pattern connects winner and loser? Your hypothesis..." value={f.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} autoFocus />
+          )}
+          {step === 4 && (
+            <div>
+              <input className="input" placeholder="The ONE variable to change" value={f.variable_changed} onChange={(e) => set("variable_changed", e.target.value)} autoFocus />
+              <p className="text-[0.7rem] mt-1" style={{ color: "var(--warning)" }}>
+                Change only ONE variable — otherwise you can&apos;t tell what worked.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {step > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(step - 1)}>Back</button>}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setWizardOpen(false); setStep(0); }}>Cancel</button>
+            </div>
+            {step < RITUAL_STEPS.length - 1 ? (
+              <button className="btn btn-primary btn-sm" onClick={() => setStep(step + 1)} disabled={step > 0 && !fieldForStep(step)}>
+                Next
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving || !f.variable_changed.trim()}>
+                {saving ? <Spinner /> : "Complete Ritual"}
+              </button>
+            )}
           </div>
-        </form>
+        </div>
       )}
-      <div className="space-y-2">
-        {decisions.length === 0 && !open && <div className="card"><EmptyState title="No decisions logged" hint="Each Monday: best, worst, and the one change." icon="🧭" /></div>}
+
+      <div className="space-y-2 mt-3">
+        {decisions.length === 0 && !wizardOpen && <div className="card"><EmptyState title="No rituals logged" hint="Each Monday: review numbers, find the best & worst, diagnose, pick one change." icon="🧭" /></div>}
         {decisions.map((d) => (
           <div key={d.id} className="card">
             <div className="flex items-center justify-between">

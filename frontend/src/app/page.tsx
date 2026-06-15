@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { UpcomingSlot, WorkflowRun, Niche, CalendarConfig, VideoPerf, Settings, DecisionsData } from "@/lib/types";
 import { getUpcomingSlots } from "@/lib/calendar-utils";
@@ -12,6 +12,7 @@ interface Loaded {
   slots: UpcomingSlot[];
   runs: WorkflowRun[];
   perf: VideoPerf[];
+  niches: Record<string, Niche>;
   settings: Settings;
   markers: DecisionsData;
 }
@@ -42,6 +43,7 @@ export default function DashboardPage() {
         slots: getUpcomingSlots(cal, niches, 5),
         runs: (videos.videos || []).slice(0, 5),
         perf: perf.videos || [],
+        niches,
         settings,
         markers: decisions,
       });
@@ -57,7 +59,7 @@ export default function DashboardPage() {
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
-  const { slots, runs, perf, settings, markers } = data;
+  const { slots, runs, perf, niches, settings, markers } = data;
   const t = settings.thresholds ?? { ctr_alarm: 0, avd_alarm: 0, shorts_apv_target: 0, max_videos_per_day: 0 };
 
   const since = now - WEEK_MS;
@@ -149,6 +151,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <NicheBreakdown perf={perf} niches={niches} />
+
       <div className="grid md:grid-cols-2 gap-3">
         <section>
           <div className="flex items-center justify-between mb-2">
@@ -207,6 +211,56 @@ function MetricCard({ label, value, color, alarm }: { label: string; value: stri
       <div className="text-lg font-bold" style={{ color: alarm ? "var(--error)" : color || "var(--text)" }}>{value}</div>
       <div className="text-[0.65rem] mt-0.5" style={{ color: "var(--text-muted)" }}>{label}</div>
     </div>
+  );
+}
+
+function NicheBreakdown({ perf, niches }: { perf: VideoPerf[]; niches: Record<string, Niche> }) {
+  const breakdown = useMemo(() => {
+    const map = new Map<string, { count: number; views: number; ctrs: number[]; apvs: number[]; rets: number[]; rev: number }>();
+    for (const v of perf) {
+      const key = v.niche || "_none";
+      const cur = map.get(key) || { count: 0, views: 0, ctrs: [], apvs: [], rets: [], rev: 0 };
+      cur.count++;
+      cur.views += v.views;
+      if (v.ctr) cur.ctrs.push(v.ctr);
+      if (v.format === "short" && v.apv) cur.apvs.push(v.apv);
+      if (v.format === "long" && v.retention) cur.rets.push(v.retention);
+      cur.rev += v.revenue || 0;
+      map.set(key, cur);
+    }
+    return [...map.entries()]
+      .map(([key, d]) => ({
+        key,
+        label: key === "_none" ? "Unassigned" : niches[key]?.label || key,
+        color: key === "_none" ? "#6b7280" : niches[key]?.color || "#6b7280",
+        ...d,
+        avgCtr: d.ctrs.length ? d.ctrs.reduce((a, b) => a + b, 0) / d.ctrs.length : 0,
+        avgApv: d.apvs.length ? d.apvs.reduce((a, b) => a + b, 0) / d.apvs.length : 0,
+        avgRet: d.rets.length ? d.rets.reduce((a, b) => a + b, 0) / d.rets.length : 0,
+      }))
+      .sort((a, b) => b.views - a.views);
+  }, [perf, niches]);
+
+  if (breakdown.length === 0) return null;
+
+  return (
+    <section className="card">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>By Niche</h3>
+      <div className="space-y-2">
+        {breakdown.map((n) => (
+          <div key={n.key} className="flex items-center gap-3 text-xs">
+            <NicheBadge label={n.label} color={n.color} />
+            <span className="flex-1" />
+            <span>{n.count} vid{n.count !== 1 ? "s" : ""}</span>
+            <span style={{ color: "var(--text-muted)" }}>{n.views.toLocaleString()} views</span>
+            {n.avgCtr > 0 && <span>CTR {n.avgCtr.toFixed(1)}%</span>}
+            {n.avgApv > 0 && <span style={{ color: "#a78bfa" }}>APV {n.avgApv.toFixed(0)}%</span>}
+            {n.avgRet > 0 && <span style={{ color: "#34d399" }}>Ret {n.avgRet.toFixed(0)}%</span>}
+            {n.rev > 0 && <span style={{ color: "var(--success)" }}>${n.rev.toFixed(2)}</span>}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

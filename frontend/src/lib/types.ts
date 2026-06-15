@@ -148,6 +148,31 @@ export interface WeeklyDecision {
   created_at: string;
 }
 
+/** Video production studio — scene-by-scene project planning. */
+export interface Scene {
+  id: string;
+  order: number;
+  duration_seconds: number;
+  text: string;
+  image_url: string;
+  image_prompt: string;
+  transition: "cut" | "fade" | "dissolve" | "slide" | "zoom";
+}
+
+export interface VideoProject {
+  id: string;
+  title: string;
+  mode: "quick" | "manual";
+  format: "short" | "long";
+  total_duration_seconds: number;
+  scene_count: number;
+  niche: string;
+  topic: string;
+  scenes: Scene[];
+  status: "draft" | "producing" | "done";
+  created_at: string;
+}
+
 export interface DecisionsData {
   decisions: WeeklyDecision[];
   // Channel growth markers for the monetization / phase tracker.

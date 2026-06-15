@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Idea, Niche } from "@/lib/types";
 import { apiFetch, useToast, ErrorState, EmptyState, NicheBadge, FormatBadge, Spinner } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 import { fmtDate } from "@/lib/format";
 
 export default function IdeasPage() {
+  const { activeId } = useChannel();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [niches, setNiches] = useState<Record<string, Niche>>({});
   const [text, setText] = useState("");
@@ -34,7 +36,7 @@ export default function IdeasPage() {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
     setLoading(false);
-  }, []);
+  }, [activeId]);
 
   useEffect(() => { load(); }, [load]);
 

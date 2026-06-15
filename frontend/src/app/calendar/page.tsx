@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import type { CalendarConfig, Niche, UpcomingSlot } from "@/lib/types";
 import { getUpcomingSlots } from "@/lib/calendar-utils";
 import { apiFetch, ErrorState, PageSkeleton, FormatBadge, NicheBadge, EmptyState } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 import { formatStyle, fmtDateTime } from "@/lib/format";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function CalendarPage() {
+  const { activeId } = useChannel();
   const [calendar, setCalendar] = useState<CalendarConfig | null>(null);
   const [niches, setNiches] = useState<Record<string, Niche>>({});
   const [upcoming, setUpcoming] = useState<UpcomingSlot[]>([]);
@@ -32,7 +34,7 @@ export default function CalendarPage() {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
     setLoading(false);
-  }, []);
+  }, [activeId]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Niche } from "@/lib/types";
 import { apiFetch, useToast, Switch, Spinner, ErrorState } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 
 function ProduceInner() {
   const params = useSearchParams();
+  const { active } = useChannel();
   const [niches, setNiches] = useState<Record<string, Niche>>({});
   const [format, setFormat] = useState(params.get("format") === "long" ? "long" : "short");
   const [niche, setNiche] = useState(params.get("niche") || "");
@@ -36,7 +38,7 @@ function ProduceInner() {
 
   async function handleProduce(e: React.FormEvent) {
     e.preventDefault();
-    if (upload && !confirm("This will produce AND publish a video to YouTube. Continue?")) return;
+    if (upload && !confirm(`This will produce AND publish to "${active?.name || "YouTube"}". Continue?`)) return;
     setProducing(true);
     setDone(false);
     try {
@@ -60,8 +62,10 @@ function ProduceInner() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-bold" style={{ color: "var(--gold)" }}>Produce Video</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Trigger the pipeline manually. Runs via GitHub Actions.</p>
+        <h1 className="text-xl font-bold" style={{ color: "var(--gold)" }}>Produce Video</h1>
+        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+          Producing for <span style={{ color: "var(--gold)" }}>{active?.name || "—"}</span> · Runs via GitHub Actions
+        </p>
       </header>
 
       <form onSubmit={handleProduce} className="card space-y-4">

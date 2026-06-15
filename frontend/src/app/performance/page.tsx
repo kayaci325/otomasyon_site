@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { VideoPerf, Niche, Settings, DecisionsData, WeeklyDecision } from "@/lib/types";
 import { apiFetch, useToast, ErrorState, PageSkeleton, EmptyState, FormatBadge, NicheBadge, Spinner } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 import { fmtDate } from "@/lib/format";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -15,6 +16,7 @@ function mondayOf(d = new Date()): string {
 }
 
 export default function PerformancePage() {
+  const { activeId } = useChannel();
   const [videos, setVideos] = useState<VideoPerf[]>([]);
   const [niches, setNiches] = useState<Record<string, Niche>>({});
   const [thresholds, setThresholds] = useState<Settings["thresholds"] | null>(null);
@@ -41,7 +43,7 @@ export default function PerformancePage() {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
     setLoading(false);
-  }, []);
+  }, [activeId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,17 +73,21 @@ function Scoreboard({ videos, thresholds }: { videos: VideoPerf[]; thresholds: S
   const week = videos.filter((v) => new Date(v.published_at).getTime() >= since);
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
-  const ret = avg(week.map((v) => v.retention));
   const ctr = avg(week.map((v) => v.ctr));
+  const shorts = week.filter(v => v.format === "short");
+  const longs = week.filter(v => v.format === "long");
+  const shortsApv = avg(shorts.map(v => v.apv));
+  const longsRet = avg(longs.map(v => v.retention));
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-3">This Week</h2>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>This Week</h2>
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         <Stat label="Videos" value={String(week.length)} />
         <Stat label="Views" value={sum(week.map((v) => v.views)).toLocaleString()} />
-        <Stat label="Subs" value={sum(week.map((v) => v.subs_gained)).toLocaleString()} />
+        <Stat label="Subs" value={`+${sum(week.map((v) => v.subs_gained))}`} />
         <Stat label="Avg CTR" value={week.length ? `${ctr.toFixed(1)}%` : "—"} alarm={!!thresholds && week.length > 0 && ctr < thresholds.ctr_alarm} />
-        <Stat label="Avg Retention" value={week.length ? `${ret.toFixed(0)}%` : "—"} alarm={!!thresholds && week.length > 0 && ret < thresholds.avd_alarm} />
+        <Stat label="Shorts APV" value={shorts.length ? `${shortsApv.toFixed(0)}%` : "—"} alarm={!!thresholds && shorts.length > 0 && shortsApv < thresholds.shorts_apv_target} />
+        <Stat label="Long Ret." value={longs.length ? `${longsRet.toFixed(0)}%` : "—"} alarm={!!thresholds && longs.length > 0 && longsRet < thresholds.avd_alarm} />
       </div>
     </section>
   );

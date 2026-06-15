@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { WorkflowRun } from "@/lib/types";
 import { apiFetch, ErrorState, EmptyState, StatusBadge, Spinner } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 import { statusColor, humanizeStatus, fmtDateTime } from "@/lib/format";
 
 export default function RunsPage() {
+  const { activeId } = useChannel();
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,9 +24,16 @@ export default function RunsPage() {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
     if (soft) setRefreshing(false); else setLoading(false);
-  }, []);
+  }, [activeId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (runs.some(r => !r.conclusion)) {
+      const t = setInterval(() => load(true), 20000);
+      return () => clearInterval(t);
+    }
+  }, [runs, load]);
 
   const counts = {
     all: runs.length,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui";
 import { useChannel } from "@/components/ChannelContext";
 
@@ -16,6 +16,9 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
+const MOBILE_NAV = NAV.slice(0, 4);
+const MORE_NAV = NAV.slice(4);
+const MORE_ICON = "M4 6h16M4 12h16M4 18h16";
 const LOGOUT_ICON = "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1";
 
 function Icon({ d }: { d: string }) {
@@ -33,12 +36,22 @@ function isActive(pathname: string, href: string) {
 function ChannelSwitcher() {
   const { channels, activeId, active, setActiveId } = useChannel();
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const keys = Object.keys(channels);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   if (keys.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-[var(--bg)] transition-colors"
@@ -58,9 +71,11 @@ function ChannelSwitcher() {
             {active?.active_niches?.length || 0} niches
           </div>
         </div>
-        <svg className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-        </svg>
+        {keys.length > 1 && (
+          <svg className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+          </svg>
+        )}
       </button>
       {open && keys.length > 1 && (
         <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-xl z-50 overflow-hidden">
@@ -94,6 +109,17 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const toast = useToast();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moreOpen]);
 
   if (pathname === "/login") return null;
 
@@ -150,19 +176,19 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — max 5 items (4 core + More) */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--card)] border-t border-[var(--border)] z-50 flex justify-around px-1"
         style={{ paddingTop: "0.4rem", paddingBottom: "calc(0.4rem + env(safe-area-inset-bottom))" }}
       >
-        {NAV.map((item) => {
+        {MOBILE_NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg text-[0.6rem] ${
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[0.65rem] ${
                 active ? "text-[var(--gold)]" : "text-[var(--text-muted)]"
               }`}
             >
@@ -171,6 +197,45 @@ export function Sidebar() {
             </Link>
           );
         })}
+        {/* More menu */}
+        <div className="relative" ref={moreRef}>
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[0.65rem] ${
+              moreOpen || MORE_NAV.some(i => isActive(pathname, i.href)) ? "text-[var(--gold)]" : "text-[var(--text-muted)]"
+            }`}
+          >
+            <Icon d={MORE_ICON} />
+            More
+          </button>
+          {moreOpen && (
+            <div className="absolute bottom-full right-0 mb-2 w-48 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-xl overflow-hidden">
+              {MORE_NAV.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                      active ? "text-[var(--gold)] bg-[var(--gold)]/10" : "text-[var(--text-muted)] hover:bg-[var(--bg)]"
+                    }`}
+                  >
+                    <Icon d={item.icon} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <button
+                onClick={() => { setMoreOpen(false); logout(); }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] hover:bg-[var(--bg)] border-t border-[var(--border)]"
+              >
+                <Icon d={LOGOUT_ICON} />
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
     </>
   );

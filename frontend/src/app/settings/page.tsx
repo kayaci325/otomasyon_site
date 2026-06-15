@@ -82,6 +82,12 @@ export default function SettingsPage() {
   function updateThreshold(key: string, value: number) {
     setSettings((s) => s ? { ...s, thresholds: { ...s.thresholds, [key]: value } } : s);
   }
+  function updateTts(key: string, value: string | number) {
+    setSettings((s) => s ? { ...s, tts: { ...s.tts, [key]: value } } : s);
+  }
+  function updateYoutube(key: string, value: string | boolean) {
+    setSettings((s) => s ? { ...s, youtube: { ...s.youtube, [key]: value } } : s);
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -119,6 +125,48 @@ export default function SettingsPage() {
           <Field label="Long retention alarm (%)" value={settings.thresholds.avd_alarm} onChange={(v) => updateThreshold("avd_alarm", Number(v))} step={1} />
           <Field label="Shorts APV target (%)" value={settings.thresholds.shorts_apv_target} onChange={(v) => updateThreshold("shorts_apv_target", Number(v))} step={5} />
           <Field label="Max videos/day" value={settings.thresholds.max_videos_per_day} onChange={(v) => updateThreshold("max_videos_per_day", Number(v))} />
+        </div>
+      </section>
+
+      {/* TTS */}
+      <section className="card">
+        <h2 className="text-sm font-semibold mb-3">Text-to-Speech</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Field label="Model ID" value={settings.tts.model_id} onChange={(v) => updateTts("model_id", v)} type="text" />
+          <Field label="Stability" value={settings.tts.stability} onChange={(v) => updateTts("stability", Number(v))} step={0.05} />
+          <Field label="Similarity Boost" value={settings.tts.similarity_boost} onChange={(v) => updateTts("similarity_boost", Number(v))} step={0.05} />
+        </div>
+      </section>
+
+      {/* YouTube */}
+      <section className="card">
+        <h2 className="text-sm font-semibold mb-3">YouTube Upload</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Field label="Category ID" value={settings.youtube.category_id} onChange={(v) => updateYoutube("category_id", v)} type="text" />
+          <div>
+            <label className="label">Default Language</label>
+            <select className="select" value={settings.youtube.default_language} onChange={(e) => updateYoutube("default_language", e.target.value)}>
+              <option value="en">English</option>
+              <option value="tr">Turkish</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Privacy</label>
+            <select className="select" value={settings.youtube.privacy_status} onChange={(e) => updateYoutube("privacy_status", e.target.value)}>
+              <option value="private">Private</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="public">Public</option>
+            </select>
+          </div>
+          <div className="flex items-end pb-1">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={settings.youtube.made_for_kids} onChange={(e) => updateYoutube("made_for_kids", e.target.checked)} className="accent-[var(--gold)]" />
+              Made for Kids
+            </label>
+          </div>
         </div>
       </section>
     </div>

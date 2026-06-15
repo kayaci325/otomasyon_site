@@ -13,6 +13,7 @@ const ALLOWED = new Set([
   "config/ideas.json",
   "config/performance.json",
   "config/decisions.json",
+  "config/thumbnails.json",
 ]);
 
 function fail(e: unknown) {

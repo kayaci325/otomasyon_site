@@ -112,6 +112,8 @@ export interface VideoPerf {
   retention: number; // average view %, AVD proxy
   apv: number; // shorts average % viewed
   subs_gained: number;
+  revenue?: number;
+  rpm?: number;
   notes?: string;
 }
 

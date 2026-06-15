@@ -58,6 +58,8 @@ export async function POST(request: Request) {
             retention: num(body.retention),
             apv: num(body.apv),
             subs_gained: num(body.subs_gained),
+            revenue: num(body.revenue),
+            rpm: num(body.rpm),
             notes: body.notes || "",
           };
           data.videos.unshift(v);
@@ -67,8 +69,8 @@ export async function POST(request: Request) {
           const v = data.videos.find((x) => x.id === body.id);
           if (v && body.updates && typeof body.updates === "object") {
             const u = body.updates as Record<string, unknown>;
-            const allow = ["title", "youtube_url", "niche", "format", "hook", "published_at", "views", "ctr", "retention", "apv", "subs_gained", "notes"];
-            const numeric = new Set(["views", "ctr", "retention", "apv", "subs_gained"]);
+            const allow = ["title", "youtube_url", "niche", "format", "hook", "published_at", "views", "ctr", "retention", "apv", "subs_gained", "revenue", "rpm", "notes"];
+            const numeric = new Set(["views", "ctr", "retention", "apv", "subs_gained", "revenue", "rpm"]);
             for (const k of allow) if (k in u) (v as unknown as Record<string, unknown>)[k] = numeric.has(k) ? num(u[k]) : u[k];
           }
         }

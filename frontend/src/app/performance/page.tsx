@@ -322,60 +322,139 @@ function EditRow({ video, niches, onSave, onCancel }: { video: VideoPerf; niches
   );
 }
 
-/* -------- decisions log -------- */
+/* -------- weekly ritual wizard + decisions log -------- */
+const RITUAL_STEPS = [
+  { key: "review", title: "Review Numbers", hint: "Open YouTube Studio → check each video's CTR, retention, APV. Update the ledger above." },
+  { key: "best", title: "Best Video", hint: "Which video flew? What hook/thumbnail/topic made it work?" },
+  { key: "worst", title: "Worst Video", hint: "One-sentence diagnosis — why did it flop?" },
+  { key: "diagnosis", title: "Root Cause", hint: "What pattern connects the winner and the loser? Write your hypothesis." },
+  { key: "variable", title: "One Change", hint: "Pick exactly ONE variable to change this week. The playbook forbids multiple." },
+] as const;
+
 function Decisions({ decisions, videos, onChanged, toast }: { decisions: WeeklyDecision[]; videos: VideoPerf[]; onChanged: () => void; toast: ReturnType<typeof useToast>; }) {
-  const [open, setOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const empty = { week_of: mondayOf(), best_video: "", worst_video: "", diagnosis: "", variable_changed: "" };
   const [f, setF] = useState(empty);
   function set(k: string, v: string) { setF((p) => ({ ...p, [k]: v })); }
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    // One-variable guard (the cardinal playbook rule)
+
+  const sortedByViews = useMemo(() => [...videos].sort((a, b) => b.views - a.views), [videos]);
+  const topPick = sortedByViews[0];
+  const bottomPick = sortedByViews[sortedByViews.length - 1];
+
+  async function submit() {
     if (/\band\b|[,;]|\n/i.test(f.variable_changed.trim())) {
       if (!confirm("This looks like more than one change. The playbook says change ONLY ONE variable per week. Log it anyway?")) return;
     }
     setSaving(true);
     try {
       await apiFetch("/api/decisions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", ...f }) });
-      setF(empty); setOpen(false); onChanged(); toast.success("Decision logged");
+      setF(empty); setWizardOpen(false); setStep(0); onChanged(); toast.success("Weekly ritual logged");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to log"); }
     setSaving(false);
   }
+
   async function del(id: string) {
     try {
       await apiFetch("/api/decisions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
       onChanged(); toast.success("Removed");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Delete failed"); }
   }
-  const topPick = videos.slice().sort((a, b) => b.views - a.views)[0];
+
+  const fieldForStep = (s: number) => {
+    if (s === 1) return f.best_video;
+    if (s === 2) return f.worst_video;
+    if (s === 3) return f.diagnosis;
+    if (s === 4) return f.variable_changed;
+    return "ok";
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Weekly Decisions</h2>
-        {!open && <button className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>+ Log this week</button>}
+        <h2 className="text-lg font-semibold">Monday Ritual</h2>
+        {!wizardOpen && (
+          <button className="btn btn-primary btn-sm" onClick={() => setWizardOpen(true)}>
+            Start Weekly Ritual
+          </button>
+        )}
       </div>
-      {open && (
-        <form onSubmit={add} className="card space-y-3 mb-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Week of</label><input className="input" type="date" value={f.week_of} onChange={(e) => set("week_of", e.target.value)} /></div>
-            <div className="self-end text-xs" style={{ color: "var(--text-muted)" }}>{topPick ? `Top video: ${topPick.title}` : ""}</div>
+
+      {wizardOpen && (
+        <div className="card space-y-4" style={{ borderColor: "var(--gold)" }}>
+          {/* Progress bar */}
+          <div className="flex gap-1">
+            {RITUAL_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className="h-1 flex-1 rounded-full transition-all"
+                style={{ background: i <= step ? "var(--gold)" : "var(--border)" }}
+              />
+            ))}
           </div>
-          <input className="input" placeholder="Best video — and why it flew" value={f.best_video} onChange={(e) => set("best_video", e.target.value)} />
-          <input className="input" placeholder="Worst video — one-sentence diagnosis" value={f.worst_video} onChange={(e) => set("worst_video", e.target.value)} />
-          <textarea className="textarea" placeholder="Diagnosis / notes" value={f.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} />
+
           <div>
-            <input className="input" placeholder="The ONE variable changed this week" value={f.variable_changed} onChange={(e) => set("variable_changed", e.target.value)} />
-            <p className="text-[0.7rem] mt-1" style={{ color: "var(--warning)" }}>Change only one variable per week — otherwise you can&apos;t tell what worked.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: "var(--gold)22", color: "var(--gold)" }}>
+                {step + 1}/{RITUAL_STEPS.length}
+              </span>
+              <h3 className="text-sm font-semibold">{RITUAL_STEPS[step].title}</h3>
+            </div>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{RITUAL_STEPS[step].hint}</p>
           </div>
-          <div className="flex gap-2">
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Spinner /> : "Log decision"}</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+
+          {step === 0 && (
+            <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
+              <div><label className="label">Week of</label><input className="input" type="date" value={f.week_of} onChange={(e) => set("week_of", e.target.value)} /></div>
+              <p className="mt-2">Update each video&apos;s metrics in the ledger above, then proceed.</p>
+              {topPick && <p>Your current top: <strong style={{ color: "var(--text)" }}>{topPick.title}</strong> ({topPick.views.toLocaleString()} views)</p>}
+            </div>
+          )}
+          {step === 1 && (
+            <div>
+              <input className="input" placeholder="Best video — and why it flew" value={f.best_video} onChange={(e) => set("best_video", e.target.value)} autoFocus />
+              {topPick && <p className="text-[0.7rem] mt-1" style={{ color: "var(--text-muted)" }}>Suggestion: {topPick.title}</p>}
+            </div>
+          )}
+          {step === 2 && (
+            <div>
+              <input className="input" placeholder="Worst video — one-sentence diagnosis" value={f.worst_video} onChange={(e) => set("worst_video", e.target.value)} autoFocus />
+              {bottomPick && bottomPick !== topPick && <p className="text-[0.7rem] mt-1" style={{ color: "var(--text-muted)" }}>Lowest views: {bottomPick.title}</p>}
+            </div>
+          )}
+          {step === 3 && (
+            <textarea className="textarea" placeholder="What pattern connects winner and loser? Your hypothesis..." value={f.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} autoFocus />
+          )}
+          {step === 4 && (
+            <div>
+              <input className="input" placeholder="The ONE variable to change" value={f.variable_changed} onChange={(e) => set("variable_changed", e.target.value)} autoFocus />
+              <p className="text-[0.7rem] mt-1" style={{ color: "var(--warning)" }}>
+                Change only ONE variable — otherwise you can&apos;t tell what worked.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {step > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(step - 1)}>Back</button>}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setWizardOpen(false); setStep(0); }}>Cancel</button>
+            </div>
+            {step < RITUAL_STEPS.length - 1 ? (
+              <button className="btn btn-primary btn-sm" onClick={() => setStep(step + 1)} disabled={step > 0 && !fieldForStep(step)}>
+                Next
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving || !f.variable_changed.trim()}>
+                {saving ? <Spinner /> : "Complete Ritual"}
+              </button>
+            )}
           </div>
-        </form>
+        </div>
       )}
-      <div className="space-y-2">
-        {decisions.length === 0 && !open && <div className="card"><EmptyState title="No decisions logged" hint="Each Monday: best, worst, and the one change." icon="🧭" /></div>}
+
+      <div className="space-y-2 mt-3">
+        {decisions.length === 0 && !wizardOpen && <div className="card"><EmptyState title="No rituals logged" hint="Each Monday: review numbers, find the best & worst, diagnose, pick one change." icon="🧭" /></div>}
         {decisions.map((d) => (
           <div key={d.id} className="card">
             <div className="flex items-center justify-between">

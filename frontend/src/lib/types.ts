@@ -11,6 +11,8 @@ export interface Channel {
   active: boolean;
 }
 
+export type ChannelsMap = Record<string, Channel>;
+
 export interface Niche {
   label: string;
   series: string;

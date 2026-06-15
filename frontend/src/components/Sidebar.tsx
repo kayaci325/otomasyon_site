@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useToast } from "@/components/ui";
+import { useChannel } from "@/components/ChannelContext";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
@@ -28,6 +30,66 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 }
 
+function ChannelSwitcher() {
+  const { channels, activeId, active, setActiveId } = useChannel();
+  const [open, setOpen] = useState(false);
+  const keys = Object.keys(channels);
+
+  if (keys.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-[var(--bg)] transition-colors"
+      >
+        <span
+          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+          style={{
+            background: active?.palette?.accent || "var(--gold)",
+            color: active?.palette?.primary || "var(--navy)",
+          }}
+        >
+          {active?.name?.charAt(0)?.toUpperCase() || "?"}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold truncate">{active?.name || "No channel"}</div>
+          <div className="text-[0.65rem]" style={{ color: "var(--text-muted)" }}>
+            {active?.active_niches?.length || 0} niches
+          </div>
+        </div>
+        <svg className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+        </svg>
+      </button>
+      {open && keys.length > 1 && (
+        <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-xl z-50 overflow-hidden">
+          {keys.map((k) => {
+            const ch = channels[k];
+            const selected = k === activeId;
+            return (
+              <button
+                key={k}
+                onClick={() => { setActiveId(k); setOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${selected ? "bg-[var(--gold)]/10 text-[var(--gold)]" : "hover:bg-[var(--bg)]"}`}
+              >
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[0.6rem] font-bold shrink-0"
+                  style={{ background: ch.palette?.accent || "var(--gold)", color: ch.palette?.primary || "var(--navy)" }}
+                >
+                  {ch.name?.charAt(0)?.toUpperCase() || "?"}
+                </span>
+                <span className="truncate">{ch.name}</span>
+                {selected && <span className="ml-auto text-[var(--gold)]">&#10003;</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -48,11 +110,21 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col fixed top-0 left-0 h-full w-64 bg-[var(--card)] border-r border-[var(--border)] z-50">
-        <div className="p-5 border-b border-[var(--border)]">
-          <h1 className="text-lg font-bold" style={{ color: "var(--gold)" }}>MindPower OS</h1>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>YouTube Command Center</p>
+        <div className="p-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--gold)" }}>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-sm font-bold" style={{ color: "var(--gold)" }}>MindPower OS</h1>
+              <p className="text-[0.6rem]" style={{ color: "var(--text-muted)" }}>Command Center</p>
+            </div>
+          </div>
+          <ChannelSwitcher />
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {NAV.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -60,7 +132,7 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active ? "bg-[var(--gold)]/15 text-[var(--gold)]" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg)]"
                 }`}
               >
@@ -71,7 +143,7 @@ export function Sidebar() {
           })}
         </nav>
         <div className="p-3 border-t border-[var(--border)]">
-          <button onClick={logout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg)] transition-colors">
+          <button onClick={logout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium w-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg)] transition-colors">
             <Icon d={LOGOUT_ICON} />
             Sign out
           </button>
@@ -81,7 +153,7 @@ export function Sidebar() {
       {/* Mobile bottom nav */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--card)] border-t border-[var(--border)] z-50 flex justify-around px-1"
-        style={{ paddingTop: "0.5rem", paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+        style={{ paddingTop: "0.4rem", paddingBottom: "calc(0.4rem + env(safe-area-inset-bottom))" }}
       >
         {NAV.map((item) => {
           const active = isActive(pathname, item.href);
@@ -90,7 +162,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg text-[0.625rem] ${
+              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg text-[0.6rem] ${
                 active ? "text-[var(--gold)]" : "text-[var(--text-muted)]"
               }`}
             >

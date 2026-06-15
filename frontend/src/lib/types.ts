@@ -119,6 +119,22 @@ export interface PerformanceData {
   videos: VideoPerf[];
 }
 
+export interface ThumbnailVariant {
+  id: string;
+  prompt: string;
+  style: "dark_moody" | "minimal" | "face_closeup" | "text_heavy";
+  notes?: string;
+  winner?: boolean;
+}
+
+export interface ThumbnailPlan {
+  video_id: string;
+  title: string;
+  niche: string;
+  variants: ThumbnailVariant[];
+  created_at: string;
+}
+
 /** Weekly command-ritual decision log (frontend-owned, additive). */
 export interface WeeklyDecision {
   id: string;

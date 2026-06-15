@@ -108,6 +108,14 @@ function ProduceInner() {
         )}
       </form>
 
+      {/* Thumbnail Prompt Generator */}
+      <ThumbnailGenerator
+        format={format}
+        niche={niche}
+        nicheLabel={niches[niche]?.label || niche}
+        topic={topic}
+      />
+
       <div className="card">
         <h3 className="text-sm font-semibold mb-2">Quick Tips</h3>
         <ul className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
@@ -115,8 +123,73 @@ function ProduceInner() {
           <li>• Long: 1200-1800 words, 3 sections with re-engagement every 3 min</li>
           <li>• Pipeline takes ~5-10 minutes (script + TTS + visuals + assembly)</li>
           <li>• Red line: never 3+ days same niche; respect your daily video cap</li>
+          <li>• Thumbnails: generate 3 variants, use YouTube Test &amp; Compare for A/B</li>
         </ul>
       </div>
+    </div>
+  );
+}
+
+const THUMB_STYLES = [
+  { key: "dark_moody", label: "Dark Moody", template: "Cinematic, dark moody atmosphere, dramatic lighting, {subject}, 4K quality, film grain, dark blue and gold color palette, mysterious vibe, {ratio}, no text, no watermark" },
+  { key: "minimal", label: "Minimal", template: "Ultra clean minimalist design, single {subject} centered, solid dark navy background, gold accent lighting, {ratio}, professional, no text, no watermark" },
+  { key: "face_closeup", label: "Face Close-up", template: "Extreme close-up portrait, intense eyes, dramatic side lighting, {subject}, dark background with gold rim light, {ratio}, cinematic, no text, no watermark" },
+  { key: "text_heavy", label: "Bold Text", template: "Dark navy background, dramatic gold typography layout space, {subject} faded in background, cinematic lighting, {ratio}, editorial style, no watermark" },
+] as const;
+
+function ThumbnailGenerator({ format, niche, nicheLabel, topic }: { format: string; niche: string; nicheLabel: string; topic: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const ratio = format === "short" ? "portrait 9:16" : "landscape 16:9";
+  const subject = topic.trim() || `${nicheLabel} concept, psychology of success`;
+
+  function copyPrompt(prompt: string, key: string) {
+    navigator.clipboard.writeText(prompt).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  if (!open) {
+    return (
+      <button className="btn btn-secondary w-full" onClick={() => setOpen(true)}>
+        Generate Thumbnail Prompts
+      </button>
+    );
+  }
+
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Thumbnail Prompts</h3>
+        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Close</button>
+      </div>
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        3 style variants for &quot;{subject}&quot; · {format === "short" ? "9:16" : "16:9"} · Copy and paste into Fal AI, Midjourney, or DALL-E
+      </p>
+      <div className="space-y-2">
+        {THUMB_STYLES.slice(0, 3).map((style) => {
+          const prompt = style.template.replace("{subject}", subject).replace("{ratio}", ratio);
+          return (
+            <div key={style.key} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--bg)]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold">{style.label}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => copyPrompt(prompt, style.key)}
+                  style={{ color: copied === style.key ? "var(--success)" : undefined }}
+                >
+                  {copied === style.key ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{prompt}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[0.7rem]" style={{ color: "var(--text-muted)" }}>
+        Playbook: Generate 3 thumbnails per long-form video, use YouTube &quot;Test &amp; Compare&quot; to A/B test them.
+      </p>
     </div>
   );
 }
